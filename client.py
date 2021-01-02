@@ -12,8 +12,9 @@ class Client:
     def __init__(self, bot_token: str):
         self.token = bot_token
 
-        self.is_connected = False
-        self.user = None
+        self.is_connected: bool = False
+        self.user: Member = None
+        self.intents: int = 513
 
         resp = requests.get(
             'https://discord.com/api/gateway/bot',
@@ -115,6 +116,7 @@ class Client:
 
             await asyncio.sleep(self.__heartbeat_interval)
 
+    
 
     def run(self):
         self.loop.create_task(self.connect())
