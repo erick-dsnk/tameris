@@ -5,12 +5,20 @@ import websockets
 import json
 
 from models.member import Member
+from models.channel import Channel
+from models.permissions import PermissionOverwrite
+
+from request_handler import RequestHandler
+from event_handler import EventHandler
 
 from websockets.exceptions import PayloadTooBig
 
 class Client:
     def __init__(self, bot_token: str):
         self.token = bot_token
+
+        self.__handler = RequestHandler(token=self.token)
+        self.events = EventHandler()
 
         self.is_connected: bool = False
         self.user: Member = None
@@ -29,7 +37,7 @@ class Client:
 
         self.session_id = None
 
-        self.__heartbeat_interval = None
+        self.__heartbeat_interval = 42.15
 
         self.__data = None
 
@@ -63,6 +71,8 @@ class Client:
 
         print('sent identify')
 
+        await self.events.on_ready()
+
         self.loop.create_task(self.__heartbeat())
 
 
@@ -85,12 +95,88 @@ class Client:
 
             if self.__data['t'] == 'READY':
                 self.user = Member(
-                    name=data['user']['name'],
+                    name=data['user']['username'],
                     discriminator=data['user']['discriminator'],
                     id=data['user']['id'],
                     avatar_hash=(data['user']['avatar'] if not None else ""),
-                    flags=self.data['user']['flags']
+                    flags=data['user']['flags'],
+                    is_verified=data['user']['verified']
                 )
+
+            elif self.__data['t'] == 'CHANNEL_CREATE':
+                channel_obj = Channel(
+                    id=data['id'],
+                    type=data['type'],
+                    guild_id=data['guild_id'],
+                    position=data['position'],
+                    permission_overwrites=PermissionOverwrite(
+                        id=data['permission_overwrites']['id'],
+                        type=data['permission_overwrites']['type'],
+                        allow=data['permission_overwrites']['allow'],
+                        deny=data['permission_overwrites']['deny']
+                    ),
+                    name=data['name'],
+                    topic=data['topic'],
+                    is_nsfw=data['nsfw'],
+                    slowmode_interval=data['rate_limit_per_user'],
+                    parent_id=data['parent_id'],
+                    last_message_id=data['last_message_id'],
+                    bitrate=data['bitrate'],
+                    user_limit=data['user_limit']
+                )
+
+                self.events.on_channel_create(channel=channel_obj)
+
+            elif self.__data['t'] == 'CHANNEL_UPDATE':
+                channel_obj = Channel(
+                    id=data['id'],
+                    type=data['type'],
+                    guild_id=data['guild_id'],
+                    position=data['position'],
+                    permission_overwrites=PermissionOverwrite(
+                        id=data['permission_overwrites']['id'],
+                        type=data['permission_overwrites']['type'],
+                        allow=data['permission_overwrites']['allow'],
+                        deny=data['permission_overwrites']['deny']
+                    ),
+                    name=data['name'],
+                    topic=data['topic'],
+                    is_nsfw=data['nsfw'],
+                    slowmode_interval=data['rate_limit_per_user'],
+                    parent_id=data['parent_id'],
+                    last_message_id=data['last_message_id'],
+                    bitrate=data['bitrate'],
+                    user_limit=data['user_limit']
+                )
+
+                self.events.on_channel_update(channel=channel_obj)
+
+            elif self.__data['t'] == 'CHANNEL_DELETE':
+                channel_obj = Channel(
+                    id=data['id'],
+                    type=data['type'],
+                    guild_id=data['guild_id'],
+                    position=data['position'],
+                    permission_overwrites=PermissionOverwrite(
+                        id=data['permission_overwrites']['id'],
+                        type=data['permission_overwrites']['type'],
+                        allow=data['permission_overwrites']['allow'],
+                        deny=data['permission_overwrites']['deny']
+                    ),
+                    name=data['name'],
+                    topic=data['topic'],
+                    is_nsfw=data['nsfw'],
+                    slowmode_interval=data['rate_limit_per_user'],
+                    parent_id=data['parent_id'],
+                    last_message_id=data['last_message_id'],
+                    bitrate=data['bitrate'],
+                    user_limit=data['user_limit']
+                )
+
+                self.events.on_channel_update(channel=channel_obj)
+
+            
+
 
 
     async def __send_data(self, payload):
@@ -116,7 +202,7 @@ class Client:
 
             await asyncio.sleep(self.__heartbeat_interval)
 
-    
+
 
     def run(self):
         self.loop.create_task(self.connect())
@@ -127,3 +213,12 @@ class Client:
         except KeyboardInterrupt:
             self.loop.stop()
 
+    async def send_message(self, message, channel_id):
+        resp = await self.__handler.post(
+            endpoint=f'/channels/{channel_id}/messages',
+            body={
+                'content': message
+            }
+        )
+
+        print(resp)
