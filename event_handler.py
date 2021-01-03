@@ -62,34 +62,34 @@ class EventHandler:
     async def _on_guild_create(self, guild):
         pass
 
-    async def _on_guild_delete(self, guild):
+    async def _on_guild_delete(self, guild_id):
         pass
 
     async def _on_guild_update(self, guild):
         pass
 
-    async def _on_guild_ban_add(self, member):
+    async def _on_guild_ban_add(self, guild_id, member):
         pass
 
-    async def _on_guild_ban_remove(self, member):
+    async def _on_guild_ban_remove(self, guild_id, member):
         pass
 
-    async def _on_guild_member_add(self, member):
+    async def _on_guild_member_add(self, guild_member):
         pass
 
-    async def _on_guild_member_update(self, member):
+    async def _on_guild_member_update(self, guild_member):
         pass
 
-    async def _on_guild_member_remove(self, member):
+    async def _on_guild_member_remove(self, guild_id, member):
         pass
 
-    async def _on_guild_role_create(self, role):
+    async def _on_guild_role_create(self, guild_id, role):
         pass
 
-    async def _on_guild_role_update(self, role):
+    async def _on_guild_role_update(self, guild_id, role):
         pass
 
-    async def _on_guild_role_delete(self, role):
+    async def _on_guild_role_delete(self, guild_id, role_id):
         pass
 
     async def _on_channel_create(self, channel):

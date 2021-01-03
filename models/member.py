@@ -5,8 +5,8 @@ class Member:
         discriminator: str,
         id: int,
         avatar_hash: str,
-        is_verified: bool,
-        flags: int,
+        is_verified: bool = None,
+        flags: int = None,
         premium_type: int = None
     ):
         self.name = name

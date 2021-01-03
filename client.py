@@ -6,7 +6,10 @@ import json
 
 from models.member import Member
 from models.channel import Channel
-from models.permissions import PermissionOverwrite
+from models.permissions import PermissionOverwrite, Permissions
+from models.guild import Guild
+from models.role import Role
+from models.guild_member import GuildMember
 
 from request_handler import RequestHandler
 from event_handler import EventHandler
@@ -23,6 +26,8 @@ class Client:
         self.is_connected: bool = False
         self.user: Member = None
         self.intents: int = 513
+
+        self.guilds = []
 
         resp = requests.get(
             'https://discord.com/api/gateway/bot',
@@ -174,9 +179,207 @@ class Client:
                 )
 
                 self.events.on_channel_update(channel=channel_obj)
+            
+            elif self.__data['t'] == 'GUILD_CREATE':
+                guild_obj = Guild(
+                    id=data['id'],
+                    name=data['name'],
+                    icon=data['icon'],
+                    splash=data['splash'],
+                    discovery_splash=data['discovery_splash'],
+                    owner_id=data['owner_id'],
+                    region=data['region'],
+                    afk_channel_id=data['afk_channel_id'],
+                    afk_timeout=data['afk_timeout'],
+                    verification_level=data['verification_level'],
+                    default_message_notifications=data['default_message_notifications'],
+                    explicit_content_filter=data['explicit_content_filter'],
+                    roles=[
+                        Role(
+                            id=r['id'],
+                            name=r['name'],
+                            color=r['color'],
+                            position=r['position'],
+                            is_mentionable=r['mentionable'],
+                            hoist=r['hoist']
+                        ) for r in data['roles']
+                    ]
+                )
+
+                self.guilds.append(guild_obj)
+
+                await self.events.on_guild_create(guild=guild_obj)
+                
+            elif self.__data['t'] == 'GUILD_UPDATE':
+                guild_obj = Guild(
+                    id=data['id'],
+                    name=data['name'],
+                    icon=data['icon'],
+                    splash=data['splash'],
+                    discovery_splash=data['discovery_splash'],
+                    owner_id=data['owner_id'],
+                    region=data['region'],
+                    afk_channel_id=data['afk_channel_id'],
+                    afk_timeout=data['afk_timeout'],
+                    verification_level=data['verification_level'],
+                    default_message_notifications=data['default_message_notifications'],
+                    explicit_content_filter=data['explicit_content_filter'],
+                    roles=[
+                        Role(
+                            id=r['id'],
+                            name=r['name'],
+                            color=r['color'],
+                            position=r['position'],
+                            is_mentionable=r['mentionable'],
+                            hoist=r['hoist']
+                        ) for r in data['roles']
+                    ]
+                )
+
+                for guild in self.guilds:
+                    if guild.id == guild_obj.id:
+                        self.guilds[self.guild.index(guild)] = guild_obj
+                
+                await self.events.on_guild_update(guild=guild_obj)
+
+            elif self.__data['t'] == 'GUILD_DELETE':
+                for guild in self.guilds:
+                    if guild.id == data['id']:
+                        del self.guilds[self.guild.index(guild)]
+
+                self.events.on_guild_delete(guild_id=data['id'])
+                        
+
+            elif self.__data['t'] == 'GUILD_BAN_ADD':
+                member_obj = Member(
+                    name=data['user']['name'],
+                    discriminator=data['user']['discriminator'],
+                    id=data['user']['id'],
+                    avatar_hash=data['user']['avatar'],
+                    is_verified=data['user']['verified'],
+                    flags=data['user']['flags'],
+                    premium_type=data['user']['premium_type']
+                )
+
+
+                await self.events.on_guild_ban_add(
+                    guild_id=data['guild_id'],
+                    member=member_obj
+                )
+
+            elif self.__data['t'] == 'GUILD_BAN_REMOVE':
+                member_obj = Member(
+                    name=data['user']['name'],
+                    discriminator=data['user']['discriminator'],
+                    id=data['user']['id'],
+                    avatar_hash=data['user']['avatar'],
+                    is_verified=data['user']['verified'],
+                    flags=data['user']['flags'],
+                    premium_type=data['user']['premium_type']
+                )
+
+                await self.events.on_guild_ban_remove(
+                    guild_id=data['guild_id'],
+                    member=member_obj
+                )
+
+            elif self.__data['t'] == 'GUILD_MEMBER_ADD':
+                guild_member_obj = GuildMember(
+                    user=Member(
+                        name=data['user']['name'],
+                        discriminator=data['user']['discriminator'],
+                        id=data['user']['id'],
+                        avatar_hash=data['user']['avatar'],
+                        is_verified=data['user']['verified'],
+                        flags=data['user']['flags'],
+                        premium_type=data['user']['premium_type']
+                    ),
+                    nickname=data['nick'],
+                    roles=data['roles'],
+                    joined_at=data['joined_at'],
+                    is_deaf=data['deaf'],
+                    is_muted=data['muted'],
+                    guild_id=data['guild_id']
+                )
+
+                await self.events.on_guild_member_add(
+                    guild_member=guild_member_obj
+                )
+
+            elif self.__data['t'] == 'GUILD_MEMBER_REMOVE':
+                member_obj = Member(
+                    name=data['user']['name'],
+                    discriminator=data['user']['discriminator'],
+                    id=data['user']['id'],
+                    avatar_hash=data['user']['avatar'],
+                    is_verified=data['user']['verified'],
+                    flags=data['user']['flags'],
+                    premium_type=data['user']['premium_type']
+                )
+
+                await self.events.on_guild_member_remove(
+                    guild_id=data['guild_id'],
+                    member=member_obj
+                )
+
+            elif self.__data['t'] == 'GUILD_MEMBER_UPDATE':
+                guild_member_obj = GuildMember(
+                    user=Member(
+                        name=data['user']['name'],
+                        discriminator=data['user']['discriminator'],
+                        id=data['user']['id'],
+                        avatar_hash=data['user']['avatar'],
+                        is_verified=data['user']['verified'],
+                        flags=data['user']['flags'],
+                        premium_type=data['user']['premium_type']
+                    ),
+                    nickname=data['nick'],
+                    roles=data['roles'],
+                    joined_at=data['joined_at'],
+                    is_deaf=data['deaf'] if 'deaf' in data.keys() else False,
+                    is_muted=data['muted'] if 'deaf' in data.keys() else False,
+                    guild_id=data['guild_id']
+                )
+
+                await self.events.on_guild_member_update(
+                    guild_member=guild_member_obj
+                )
 
             
+            elif self.__data['t'] == 'GUILD_ROLE_CREATE':
+                role_obj = Role(
+                    id=data['role']['id'],
+                    name=data['role']['name'],
+                    color=data['role']['color'],
+                    position=data['role']['position'],
+                    permissions=Permissions(permission_integer=int(data['role']['permissions']))
+                )
 
+                await self.events.on_guild_role_create(
+                    guild_id=data['guild_id'],
+                    role=role_obj
+                )
+
+
+            elif self.__data['t'] == 'GUILD_ROLE_UPDATE':
+                role_obj = Role(
+                    id=data['role']['id'],
+                    name=data['role']['name'],
+                    color=data['role']['color'],
+                    position=data['role']['position'],
+                    permissions=Permissions(permission_integer=int(data['role']['permissions']))
+                )
+
+                await self.events.on_guild_role_update(
+                    guild_id=data['guild_id'],
+                    role=role_obj
+                )
+
+            elif self.__data['t'] == 'GUILD_ROLE_DELETE':
+                await self.events.on_guild_role_delete(
+                    guild_id=data['guild_id'],
+                    role_id=data['role_id']
+                )
 
 
     async def __send_data(self, payload):
@@ -195,13 +398,12 @@ class Client:
                 'op': 1,
                 'd': self.session_id
             }
-
+            
             await self.__send_data(payload)
 
             print('sent heartbeat')
 
             await asyncio.sleep(self.__heartbeat_interval)
-
 
 
     def run(self):
