@@ -10,11 +10,45 @@ from models.permissions import PermissionOverwrite, Permissions
 from models.guild import Guild
 from models.role import Role
 from models.guild_member import GuildMember
+from models.message import Message
+from models.attachment import Attachment
+from models.emoji import Emoji
+from models.embed import *
+
+from extensions import Utilities
 
 from request_handler import RequestHandler
 from event_handler import EventHandler
 
 from websockets.exceptions import PayloadTooBig
+
+class ClientPresence:
+    def __init__(
+        self,
+        name: str,
+        type: str,
+        status: str,
+        **kwargs
+    ):
+        self.name = name
+        self.type = type
+        self.status = status
+
+        if self.type == 'game':
+            self.type = 0
+        elif self.type == 'streaming':
+            self.type = 1
+        elif self.type == 'listening':
+            self.type = 2
+        elif self.type == 'custom':
+            self.type = 4
+        elif self.type == 'competing':
+            self.type = 5
+
+        if kwargs.get('url'):
+            self.url = kwargs.get('url')
+
+
 
 class Client:
     def __init__(self, bot_token: str):
@@ -22,6 +56,7 @@ class Client:
 
         self.__handler = RequestHandler(token=self.token)
         self.events = EventHandler()
+        self.utils = Utilities()
 
         self.is_connected: bool = False
         self.user: Member = None
@@ -252,7 +287,7 @@ class Client:
 
             elif self.__data['t'] == 'GUILD_BAN_ADD':
                 member_obj = Member(
-                    name=data['user']['name'],
+                    name=data['user']['username'],
                     discriminator=data['user']['discriminator'],
                     id=data['user']['id'],
                     avatar_hash=data['user']['avatar'],
@@ -269,7 +304,7 @@ class Client:
 
             elif self.__data['t'] == 'GUILD_BAN_REMOVE':
                 member_obj = Member(
-                    name=data['user']['name'],
+                    name=data['user']['username'],
                     discriminator=data['user']['discriminator'],
                     id=data['user']['id'],
                     avatar_hash=data['user']['avatar'],
@@ -286,7 +321,7 @@ class Client:
             elif self.__data['t'] == 'GUILD_MEMBER_ADD':
                 guild_member_obj = GuildMember(
                     user=Member(
-                        name=data['user']['name'],
+                        name=data['user']['username'],
                         discriminator=data['user']['discriminator'],
                         id=data['user']['id'],
                         avatar_hash=data['user']['avatar'],
@@ -308,7 +343,7 @@ class Client:
 
             elif self.__data['t'] == 'GUILD_MEMBER_REMOVE':
                 member_obj = Member(
-                    name=data['user']['name'],
+                    name=data['user']['username'],
                     discriminator=data['user']['discriminator'],
                     id=data['user']['id'],
                     avatar_hash=data['user']['avatar'],
@@ -325,7 +360,7 @@ class Client:
             elif self.__data['t'] == 'GUILD_MEMBER_UPDATE':
                 guild_member_obj = GuildMember(
                     user=Member(
-                        name=data['user']['name'],
+                        name=data['user']['username'],
                         discriminator=data['user']['discriminator'],
                         id=data['user']['id'],
                         avatar_hash=data['user']['avatar'],
@@ -381,6 +416,300 @@ class Client:
                     role_id=data['role_id']
                 )
 
+            
+            elif self.__data['t'] == 'MESSAGE_CREATE':
+                message_obj = Message(
+                    id=data['id'],
+                    channel_id=data['channel_id'],
+                    author=Member(
+                        name=data['author']['username'],
+                        discriminator=data['author']['discriminator'],
+                        id=data['author']['id'],
+                        avatar_hash=data['author']['avatar'],
+                        is_verified=data['author']['verified'],
+                        flags=data['author']['flags'],
+                        premium_type=data['author']['premium_type']
+                    ),
+                    content=data['content'],
+                    timestamp=data['timestamp'],
+                    edited_timestamp=data['edited_timestamp'],
+                    tts=data['tts'],
+                    mention_everyone=data['mention_everyone'],
+                    mentions=[
+                        Member(
+                            name=m['username'],
+                            discriminator=data['discriminator'],
+                            id=m['id'],
+                            avatar_hash=m['avatar'],
+                            is_verified=m['verified'],
+                            flags=m['flags'],
+                            premium_type=m['premium_type']
+                        ) for m in data['mentions']
+                    ],
+                    mention_roles=data['mention_roles'],
+                    attachments=[
+                        (
+                            Attachment(
+                                id=a['id'],
+                                filename=a['filename'],
+                                size=a['size'],
+                                url=a['url'],
+                                proxy_url=a['proxy_url'],
+                                height=a['height'],
+                                width=a['width']
+                            ) if ('height' in a.keys() and 'width' in a.keys()) else Attachment(
+                                id=a['id'],
+                                filename=a['filename'],
+                                size=a['size'],
+                                url=a['url'],
+                                proxy_url=a['proxy_url']
+                            )
+                        ) for a in a['attachments']
+                    ],
+                    embeds=[
+                        Embed(
+                            title=e['title'],
+                            description=e['description'],
+                            url=e['url'],
+                            timestamp=e['timestamp'],
+                            color=e['color'],
+                            footer=EmbedFooter(
+                                text=e['footer']['text'],
+                                icon_url=e['footer']['icon_url'],
+                                proxy_icon_url=e['footer']['proxy_icon_url']
+                            ),
+                            image=EmbedImage(
+                                url=e['image']['url'],
+                                proxy_url=e['image']['proxy_url'],
+                                height=e['image']['height'],
+                                width=e['image']['width']
+                            ),
+                            thumbnail=EmbedThumbnail(
+                                url=e['thumbnail']['url'],
+                                proxy_url=e['thumbnail']['proxy_url'],
+                                height=e['thumbnail']['height'],
+                                width=e['thumbnail']['width']
+                            ),
+                            video=EmbedVideo(
+                                url=e['video']['url'],
+                                height=e['video']['height'],
+                                width=e['video']['width']
+                            ),
+                            provider=EmbedProvider(
+                                name=e['provider']['name'],
+                                url=e['provider']['url']
+                            ),
+                            author=EmbedAuthor(
+                                name=e['author']['name'],
+                                url=e['author']['url'],
+                                icon_url=e['author']['icon_url'],
+                                proxy_icon_url=e['author']['proxy_icon_url']
+                            ),
+                            fields=[
+                                EmbedField(
+                                    name=e['name'],
+                                    value=e['value']
+                                ) for f in e['fields']
+                            ]
+                        ) for e in data['embeds']
+                    ],
+                    pinned=data['pinned']
+                )
+                
+                await self.events.on_message_create(
+                    message=message_obj
+                )
+
+            elif self.__data['t'] == 'MESSAGE_UPDATE':
+                message_obj = Message(
+                    id=data['id'],
+                    channel_id=data['channel_id'],
+                    author=Member(
+                        name=data['author']['username'],
+                        discriminator=data['author']['discriminator'],
+                        id=data['author']['id'],
+                        avatar_hash=data['author']['avatar'],
+                        is_verified=data['author']['verified'],
+                        flags=data['author']['flags'],
+                        premium_type=data['author']['premium_type']
+                    ),
+                    content=data['content'],
+                    timestamp=data['timestamp'],
+                    edited_timestamp=data['edited_timestamp'],
+                    tts=data['tts'],
+                    mention_everyone=data['mention_everyone'],
+                    mentions=[
+                        Member(
+                            name=m['username'],
+                            discriminator=data['discriminator'],
+                            id=m['id'],
+                            avatar_hash=m['avatar'],
+                            is_verified=m['verified'],
+                            flags=m['flags'],
+                            premium_type=m['premium_type']
+                        ) for m in data['mentions']
+                    ],
+                    mention_roles=data['mention_roles'],
+                    attachments=[
+                        (
+                            Attachment(
+                                id=a['id'],
+                                filename=a['filename'],
+                                size=a['size'],
+                                url=a['url'],
+                                proxy_url=a['proxy_url'],
+                                height=a['height'],
+                                width=a['width']
+                            ) if ('height' in a.keys() and 'width' in a.keys()) else Attachment(
+                                id=a['id'],
+                                filename=a['filename'],
+                                size=a['size'],
+                                url=a['url'],
+                                proxy_url=a['proxy_url']
+                            )
+                        ) for a in a['attachments']
+                    ],
+                    embeds=[
+                        Embed(
+                            title=e['title'],
+                            description=e['description'],
+                            url=e['url'],
+                            timestamp=e['timestamp'],
+                            color=e['color'],
+                            footer=EmbedFooter(
+                                text=e['footer']['text'],
+                                icon_url=e['footer']['icon_url'],
+                                proxy_icon_url=e['footer']['proxy_icon_url']
+                            ),
+                            image=EmbedImage(
+                                url=e['image']['url'],
+                                proxy_url=e['image']['proxy_url'],
+                                height=e['image']['height'],
+                                width=e['image']['width']
+                            ),
+                            thumbnail=EmbedThumbnail(
+                                url=e['thumbnail']['url'],
+                                proxy_url=e['thumbnail']['proxy_url'],
+                                height=e['thumbnail']['height'],
+                                width=e['thumbnail']['width']
+                            ),
+                            video=EmbedVideo(
+                                url=e['video']['url'],
+                                height=e['video']['height'],
+                                width=e['video']['width']
+                            ),
+                            provider=EmbedProvider(
+                                name=e['provider']['name'],
+                                url=e['provider']['url']
+                            ),
+                            author=EmbedAuthor(
+                                name=e['author']['name'],
+                                url=e['author']['url'],
+                                icon_url=e['author']['icon_url'],
+                                proxy_icon_url=e['author']['proxy_icon_url']
+                            ),
+                            fields=[
+                                EmbedField(
+                                    name=e['name'],
+                                    value=e['value']
+                                ) for f in e['fields']
+                            ]
+                        ) for e in data['embeds']
+                    ],
+                    pinned=data['pinned']
+                )
+                
+                await self.events.on_message_update(
+                    message=message_obj
+                )
+
+            elif self.__data['t'] == 'MESSAGE_DELETE':
+                message_id = data['id']
+                channel_id = data['channel_id']
+                guild_id = data['guild_id']
+
+                await self.events.on_message_delete(
+                    message_id=message_id,
+                    channel_id=channel_id,
+                    guild_id=guild_id
+                )
+
+            elif self.__data['t'] == 'MESSAGE_DELETE_BULK':
+                message_ids = data['message_ids']
+                channel_id = data['channel_id']
+                guild_id = data['guild_id']
+
+                await self.events.on_message_delete_bulk(
+                    message_ids=message_ids,
+                    channel_id=channel_id,
+                    guild_id=guild_id
+                )
+
+            elif self.__data['t'] == 'MESSAGE_REACTION_ADD':
+                channel_id = data['channel_id']
+                message_id = data['message_id']
+                guild_id = data['guild_id']
+                member = GuildMember(
+                    user=Member(
+                        name=data['member']['user']['username'],
+                        discriminator=data['member']['user']['discriminator'],
+                        id=data['member']['user']['id'],
+                        avatar_hash=data['member']['user']['avatar'],
+                        is_verified=data['member']['user']['verified'],
+                        flags=data['member']['user']['flags'],
+                        premium_type=data['member']['user']['premium_type']
+                    ),
+                    nickname=data['member']['nickname'],
+                    roles=data['member']['roles'],
+                    joined_at=data['member']['joined_at'],
+                    is_deaf=data['deaf'],
+                    is_muted=data['muted'],
+                    guild_id=guild_id
+                )
+                emoji = Emoji(
+                    id=data['emoji']['id'],
+                    name=data['emoji']['name'],
+                    is_animated=data['emoji']['animated'] if 'animated' in data['emoji'].keys() else False
+                )
+
+                await self.events.on_message_reaction_add(
+                    reaction=emoji,
+                    member=member,
+                    message_id=message_id,
+                    channel_id=channel_id
+                )
+
+            elif self.__data['t'] == 'MESSAGE_REACTION_REMOVE':
+                emoji = Emoji(
+                    id=data['emoji']['id'],
+                    name=data['emoji']['name'],
+                    is_animated=data['emoji']['animated'] if 'animated' in data['emoji'].keys() else False
+                )
+                member_id = data['user_id']
+                channel_id = data['channel_id']
+                guild_id = data['guild_id']
+                message_id = data['message_id']
+
+                await self.events.on_message_reaction_remove(
+                    reaction=emoji,
+                    member_id=member_id,
+                    message_id=message_id,
+                    channel_id=channel_id,
+                    guild_id=guild_id
+                )
+
+            elif self.__data['t'] == 'MESSAGE_REACTION_REMOVE_ALL':
+                channel_id = data['channel_id']
+                message_id = data['message_id']
+                guild_id = data['guild_id']
+
+                await self.events.on_message_reaction_remove_all(
+                    message_id=message_id,
+                    channel_id=channel_id,
+                    guild_id=guild_id
+                )
+
+
 
     async def __send_data(self, payload):
         payload = json.dumps(payload).encode()
@@ -415,6 +744,9 @@ class Client:
         except KeyboardInterrupt:
             self.loop.stop()
 
+
+
+
     async def send_message(self, message, channel_id):
         resp = await self.__handler.post(
             endpoint=f'/channels/{channel_id}/messages',
@@ -424,3 +756,38 @@ class Client:
         )
 
         print(resp)
+
+
+    async def update_presence(self, presence: ClientPresence):
+        if presence.url:
+            payload = {
+                'op': 3,
+                'd': {
+                    'activities': [
+                        {
+                            'name': presence.name,
+                            'type': presence.type,
+                            'url': presence.url
+                        }
+                    ],
+                    'status': presence.status,
+                    'afk': False
+                }
+            }
+        
+        else:
+            payload = {
+                'op': 3,
+                'd': {
+                    'activities': [
+                        {
+                            'name': presence.name,
+                            'type': presence.type
+                        }
+                    ],
+                    'status': presence.status,
+                    'afk': False
+                }
+            }
+
+        await self.__send_data(payload)

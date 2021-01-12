@@ -107,17 +107,17 @@ class EventHandler:
     async def _on_message_update(self, message):
         pass
 
-    async def _on_message_delete(self, message):
+    async def _on_message_delete(self, message_id, channel_id, guild_id):
         pass
 
-    async def _on_message_delete_bulk(self, messages):
+    async def _on_message_delete_bulk(self, message_ids, channel_id, guild_id):
         pass
 
-    async def _on_message_reaction_add(self, message, reaction):
+    async def _on_message_reaction_add(self, reaction, member, message_id, channel_id):
         pass
 
-    async def _on_message_reaction_remove(self, message, reaction):
+    async def _on_message_reaction_remove(self, reaction, member_id, message_id, channel_id, guild_id):
         pass
 
-    async def _on_message_reaction_remove_all(self, message, reaction):
+    async def _on_message_reaction_remove_all(self, message_id, channel_id, guild_id):
         pass
