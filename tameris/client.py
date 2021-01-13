@@ -1,24 +1,29 @@
 import asyncio
+
 import sys
+from typing import List
 import requests
 import websockets
 import json
 
-from models.member import Member
-from models.channel import Channel
-from models.permissions import PermissionOverwrite, Permissions
-from models.guild import Guild
-from models.role import Role
-from models.guild_member import GuildMember
-from models.message import Message
-from models.attachment import Attachment
-from models.emoji import Emoji
-from models.embed import *
+from tameris.models.member import Member
+from tameris.models.channel import Channel
+from tameris.models.permissions import PermissionOverwrite, Permissions
+from tameris.models.guild import Guild
+from tameris.models.role import Role
+from tameris.models.guild_member import GuildMember
+from tameris.models.message import Message
+from tameris.models.attachment import Attachment
+from tameris.models.emoji import Emoji
+from tameris.models.embed import *
 
-from extensions import Utilities
+from tameris.commands.command import Command
+from tameris.commands.context import Context
 
-from request_handler import RequestHandler
-from event_handler import EventHandler
+from tameris.extensions import Utilities
+
+from tameris.request_handler import RequestHandler
+from tameris.event_handler import EventHandler
 
 from websockets.exceptions import PayloadTooBig
 
@@ -51,8 +56,11 @@ class ClientPresence:
 
 
 class Client:
-    def __init__(self, bot_token: str):
+    def __init__(self, bot_token: str, command_prefix: str):
         self.token = bot_token
+        self.command_prefix = command_prefix
+
+        self.commands: List[Command] = []
 
         self.__handler = RequestHandler(token=self.token)
         self.events = EventHandler()
@@ -710,7 +718,6 @@ class Client:
                 )
 
 
-
     async def __send_data(self, payload):
         payload = json.dumps(payload).encode()
 
@@ -745,6 +752,24 @@ class Client:
             self.loop.stop()
 
 
+    def register_command(self, command: Command, name: str):
+        self.commands.append(command(self, name))
+
+
+    async def process_commands(self, message: Message):
+        for command in self.commands:
+            if command.was_invoked(message.content):
+                args = message.content.split(' ')
+
+                del args[0]
+
+                author = message.author
+                channel = self.utils.get_channel(channel_id=message.channel_id)
+                guild = self.utils.get_guild(guild_id=channel.guild_id)
+
+                context = Context(author=author, message=message, channel=channel, guild=guild)
+                
+                await command.run(context, args)
 
 
     async def send_message(self, message, channel_id):
