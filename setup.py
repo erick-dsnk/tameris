@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='tameris',
-    version='0.0.1a',
+    version='0.0.1',
     description='A Python Discord API Wrapper based around customizability and expandability!',
     author='Tabacaru Eric',
     author_email='erick.8bld@gmail.com',
