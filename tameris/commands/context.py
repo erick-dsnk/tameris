@@ -1,7 +1,7 @@
-from models.member import Member
-from models.channel import Channel
-from models.guild import Guild
-from models.message import Message
+from tameris.models.member import Member
+from tameris.models.channel import Channel
+from tameris.models.guild import Guild
+from tameris.models.message import Message
 
 class Context:
     def __init__(
