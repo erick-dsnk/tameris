@@ -468,7 +468,7 @@ class Client:
                                 url=a['url'],
                                 proxy_url=a['proxy_url']
                             )
-                        ) for a in a['attachments']
+                        ) for a in data['attachments']
                     ],
                     embeds=[
                         Embed(
@@ -511,8 +511,8 @@ class Client:
                             ),
                             fields=[
                                 EmbedField(
-                                    name=e['name'],
-                                    value=e['value']
+                                    name=f['name'],
+                                    value=f['value']
                                 ) for f in e['fields']
                             ]
                         ) for e in data['embeds']
@@ -544,14 +544,14 @@ class Client:
                     mention_everyone=data['mention_everyone'],
                     mentions=[
                         Member(
-                            name=m['username'],
-                            discriminator=data['discriminator'],
-                            id=m['id'],
-                            avatar_hash=m['avatar'],
-                            is_verified=m['verified'],
-                            flags=m['flags'],
-                            premium_type=m['premium_type']
-                        ) for m in data['mentions']
+                            name=mn['username'],
+                            discriminator=mn['discriminator'],
+                            id=mn['id'],
+                            avatar_hash=mn['avatar'],
+                            is_verified=mn['verified'],
+                            flags=mn['flags'],
+                            premium_type=mn['premium_type']
+                        ) for mn in data['mentions']
                     ],
                     mention_roles=data['mention_roles'],
                     attachments=[
@@ -571,7 +571,7 @@ class Client:
                                 url=a['url'],
                                 proxy_url=a['proxy_url']
                             )
-                        ) for a in a['attachments']
+                        ) for a in data['attachments']
                     ],
                     embeds=[
                         Embed(
@@ -614,8 +614,8 @@ class Client:
                             ),
                             fields=[
                                 EmbedField(
-                                    name=e['name'],
-                                    value=e['value']
+                                    name=f['name'],
+                                    value=f['value']
                                 ) for f in e['fields']
                             ]
                         ) for e in data['embeds']
@@ -768,15 +768,61 @@ class Client:
                 await command.run(context, args)
 
 
-    async def send_message(self, message, channel_id):
+    async def send_message(self, channel_id, content: str = None, embed: Embed = None, tts: bool = False):
+        body = {}
+
+        if content:
+            body['content'] = content
+
+        if embed:
+            embed_json = {}
+
+            if embed.title:
+                embed_json['title'] = embed.title
+
+            if embed.description:
+                embed_json['description'] = embed.description
+
+            if embed.url:
+                embed_json['url'] = embed.url
+
+            if embed.color:
+                embed_json['color'] = embed.color
+
+            if embed.footer:
+                embed_json['footer'] = {
+                    'text': embed.footer.text if embed.footer.text != None else '',
+                    'icon_url': embed.footer.icon_url if embed.footer.text != None else ''
+                }
+
+            if embed.image:
+                embed_json['image'] = {
+                    'url': embed.image.url,
+                    'height': embed.image.height,
+                    'width': embed.image.width
+                }
+
+            if embed.video:
+                embed_json['video'] = {
+                    'url': embed.video.url,
+                    'height': embed.video.height,
+                    'width': embed.video.width
+                }
+
+            if embed.fields:
+                embed_json['fields'] = [
+                    {
+                        'name': f.name,
+                        'value': f.value
+                    } for f in embed.fields
+                ]
+
+            body['embed'] = embed_json
+
         resp = await self.__handler.post(
             endpoint=f'/channels/{channel_id}/messages',
-            body={
-                'content': message
-            }
+            body=body
         )
-
-        print(resp)
 
 
     async def update_presence(self, presence: ClientPresence):

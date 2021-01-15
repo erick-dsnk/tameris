@@ -1,5 +1,5 @@
 class EmbedFooter:
-    def __init__(self, text, icon_url, proxy_icon_url) -> None:
+    def __init__(self, text = None, icon_url = None, proxy_icon_url = None) -> None:
         self.text = text
         self.icon_url = icon_url
         self.proxy_icon_url = proxy_icon_url
@@ -12,7 +12,7 @@ class EmbedField:
 
 
 class EmbedThumbnail:
-    def __init__(self, url, proxy_url, height, width) -> None:
+    def __init__(self, url, height, width, proxy_url = None) -> None:
         self.url = url
         self.proxy_url = proxy_url
         self.height = height
@@ -20,7 +20,7 @@ class EmbedThumbnail:
 
     
 class EmbedImage:
-    def __init__(self, url, proxy_url, height, width) -> None:
+    def __init__(self, url, height, width, proxy_url = None) -> None:
         self.url = url
         self.proxy_url = proxy_url
         self.height = height
@@ -51,18 +51,18 @@ class EmbedAuthor:
 class Embed:
     def __init__(
         self,
-        title,
-        description,
-        url,
-        timestamp,
-        color,
-        footer,
-        image,
-        thumbnail,
-        video,
-        provider,
-        author,
-        fields
+        title = None,
+        description = None,
+        url = None,
+        timestamp = None,
+        color = None,
+        footer = None,
+        image = None,
+        thumbnail = None,
+        video = None,
+        provider = None,
+        author = None,
+        fields = []
     ):
         self.title = title
         self.description = description
@@ -76,3 +76,7 @@ class Embed:
         self.provider = provider
         self.author = author
         self.fields = fields
+
+    @staticmethod
+    def create_embed():
+        return Embed()
