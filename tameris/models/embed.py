@@ -12,7 +12,7 @@ class EmbedField:
 
 
 class EmbedThumbnail:
-    def __init__(self, url, height, width, proxy_url = None) -> None:
+    def __init__(self, url, height = None, width = None, proxy_url = None) -> None:
         self.url = url
         self.proxy_url = proxy_url
         self.height = height
@@ -20,7 +20,7 @@ class EmbedThumbnail:
 
     
 class EmbedImage:
-    def __init__(self, url, height, width, proxy_url = None) -> None:
+    def __init__(self, url, height = None, width = None, proxy_url = None) -> None:
         self.url = url
         self.proxy_url = proxy_url
         self.height = height
@@ -28,7 +28,7 @@ class EmbedImage:
 
 
 class EmbedVideo:
-    def __init__(self, url, height, width) -> None:
+    def __init__(self, url, height = None, width = None) -> None:
         self.url = url
         self.height = height
         self.width = width
@@ -80,3 +80,42 @@ class Embed:
     @staticmethod
     def create_embed():
         return Embed()
+
+    def set_title(self, title):
+        self.title = title
+    
+    def set_description(self, description):
+        self.description = description
+
+    def set_url(self, url):
+        self.url = url
+
+    def set_color(self, color):
+        self.color = color
+
+    def set_footer(self, text, icon_url = None):
+        self.footer = EmbedFooter(
+            text=text,
+            icon_url=icon_url
+        )
+
+    def set_image(self, image_url):
+        self.image = EmbedImage(
+            url=image_url
+        )
+
+    def set_thumbnail(self, thumbnail_url):
+        self.thumbnail = EmbedThumbnail(
+            url=thumbnail_url
+        )
+
+    def set_video(self, video_url):
+        self.video = EmbedVideo(
+            url=video_url
+        )
+
+    def add_field(self, name, value):
+        self.fields.append(EmbedField(
+            name=name,
+            value=value
+        ))

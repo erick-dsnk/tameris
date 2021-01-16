@@ -12,11 +12,11 @@ from tameris.models.permissions import *
 from tameris.models.embed import *
 
 class Utilities:
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, handler):
+        self.handler = handler
 
     async def get_member(self, member_id: str) -> Member:
-        status_code, response = await self.client.__handler.get(endpoint=f'/users/{member_id}')
+        status_code, response = await self.handler.get(endpoint=f'/users/{member_id}')
 
         if status_code == 200:
             member = Member(
@@ -35,26 +35,28 @@ class Utilities:
             return None
 
     async def get_channel(self, channel_id: str) -> Channel:
-        status_code, response = await self.client.__handler.get(endpoint=f'/channels/{channel_id}')
+        status_code, response = await self.handler.get(endpoint=f'/channels/{channel_id}')
 
         if status_code == 200:
             channel = Channel(
                 id=response['id'],
                 type=response['type'],
-                guild_id=response['guild_id'],
+                guild_id=response['guild_id'] if 'guild_id' in response.keys() else None,
                 position=response['position'],
-                permission_overwrites=PermissionOverwrite(
-                    id=response['permission_overwrites']['id'],
-                    type=response['permission_overwrites']['type'],
-                    allow=response['permission_overwrites']['allow'],
-                    deny=response['permission_overwrites']['deny']
-                ),
+                permission_overwrites=[
+                    PermissionOverwrite(
+                        id=pw['id'],
+                        type=pw['type'],
+                        allow=pw['allow'],
+                        deny=pw['deny']
+                    ) for pw in response['permission_overwrites']
+                ] if 'permission_overwrites' in response.keys() else [],
                 name=response['name'],
-                topic=response['topic'],
-                is_nsfw=response['nsfw'],
-                slowmode_interval=response['slowmode_interval'],
-                parent_id=response['parent_id'],
-                last_message_id=response['last_message_id'],
+                topic=response['topic'] if 'topic' in response.keys() else None,
+                is_nsfw=response['nsfw'] if 'nsfw' in response.keys() else None,
+                slowmode_interval=response['slowmode_interval'] if 'slowmode_interval' in response.keys() else None,
+                parent_id=response['parent_id'] if 'parent_id' in response.keys() else None,
+                last_message_id=response['last_message_id'] if 'last_message_id' in response.keys() else None,
                 user_limit=response['user_limit'] if response['type'] == 2 else None,
                 bitrate=response['bitrate'] if response['type'] == 2 else None
             )
@@ -97,7 +99,7 @@ class Utilities:
         if channel_settings.parent_id:
             _channel_settings['parent_id'] = channel_settings.parent_id
 
-        status_code, response = await self.client.__handler.patch(
+        status_code, response = await self.handler.patch(
             endpoint=f'/channels/{channel_id}',
             body=_channel_settings
         )
@@ -131,7 +133,7 @@ class Utilities:
 
 
     async def delete_channel(self, channel_id):
-        status_code, response = await self.client.__handler.delete(
+        status_code, response = await self.handler.delete(
             endpoint=f'/channels/{channel_id}'
         )
 
@@ -142,7 +144,7 @@ class Utilities:
             return None
 
     async def get_message(self, channel_id, message_id) -> Message:
-        status_code, response = await self.client.__handler.get(
+        status_code, response = await self.handler.get(
             endpoint=f'/channels/{channel_id}/messages/{message_id}'
         )
 
@@ -266,7 +268,7 @@ class Utilities:
             if len(kwargs.keys()) < 1:
                 extra_params['around'] = kwargs.get('after')
 
-        status_code, response = await self.client.__handler.get(
+        status_code, response = await self.handler.get(
             endpoint=f'/channels/{channel_id}/messages',
             extra_params=extra_params
         )
@@ -376,7 +378,7 @@ class Utilities:
             return None
 
     async def get_guild(self, guild_id: str) -> Guild:
-        status_code, response = await self.client.__handler.get(endpoint=f'/guilds/{guild_id}')
+        status_code, response = await self.handler.get(endpoint=f'/guilds/{guild_id}')
 
         if status_code == 200:
             guild = Guild(
