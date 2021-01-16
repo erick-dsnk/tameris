@@ -20,10 +20,10 @@ from tameris.models.embed import *
 from tameris.commands.command import Command
 from tameris.commands.context import Context
 
-from tameris.extensions import Utilities
+from tameris.core.extensions import Utilities
 
-from tameris.request_handler import RequestHandler
-from tameris.event_handler import EventHandler
+from tameris.core.request_handler import RequestHandler
+from tameris.core.event_handler import EventHandler
 
 from websockets.exceptions import PayloadTooBig
 
@@ -64,7 +64,7 @@ class Client:
 
         self.__handler = RequestHandler(token=self.token)
         self.events = EventHandler()
-        self.utils = Utilities()
+        self.utils = Utilities(self.__handler)
 
         self.is_connected: bool = False
         self.user: Member = None
@@ -126,13 +126,7 @@ class Client:
 
     async def __receive_data(self):
         while True:
-            self.__data = await self.ws.recv()
-
-            print('received data')
-
-            print(self.__data)
-
-            self.__data = json.loads(self.__data)
+            self.__data = json.loads(await self.ws.recv())
 
             if self.__data['op'] == 10:
                 self.__heartbeat_interval = float(self.__data['d']['heartbeat_interval'] / 1000)
@@ -243,10 +237,29 @@ class Client:
                             name=r['name'],
                             color=r['color'],
                             position=r['position'],
+                            permissions=Permissions(int(r['permissions'])),
                             is_mentionable=r['mentionable'],
                             hoist=r['hoist']
                         ) for r in data['roles']
-                    ]
+                    ],
+                    emojis=[
+                        Emoji(
+                            id=e['id'],
+                            name=e['name'],
+                            is_animated=e['animated'] if 'animated' in e.keys() else False
+                        ) for e in data['emojis']
+                    ],
+                    features=data['features'],
+                    mfa_level=data['mfa_level'],
+                    system_channel_id=data['system_channel_id'],
+                    system_channel_flags=data['system_channel_flags'],
+                    rules_channel_id=data['rules_channel_id'],
+                    vanity_url_code=data['vanity_url_code'],
+                    description=data['description'],
+                    banner=data['banner'],
+                    premium_tier=data['premium_tier'],
+                    preferred_locale=data['preferred_locale'],
+                    public_updates_channel_id=data['public_updates_channel_id']
                 )
 
                 self.guilds.append(guild_obj)
@@ -273,10 +286,29 @@ class Client:
                             name=r['name'],
                             color=r['color'],
                             position=r['position'],
+                            permissions=Permissions(int(r['permissions'])),
                             is_mentionable=r['mentionable'],
                             hoist=r['hoist']
                         ) for r in data['roles']
-                    ]
+                    ],
+                    emojis=[
+                        Emoji(
+                            id=e['id'],
+                            name=e['name'],
+                            is_animated=e['animated'] if 'animated' in e.keys() else False
+                        ) for e in data['emojis']
+                    ],
+                    features=data['features'],
+                    mfa_level=data['mfa_level'],
+                    system_channel_id=data['system_channel_id'],
+                    system_channel_flags=data['system_channel_flags'],
+                    rules_channel_id=data['rules_channel_id'],
+                    vanity_url_code=data['vanity_url_code'],
+                    description=data['description'],
+                    banner=data['banner'],
+                    premium_tier=data['premium_tier'],
+                    preferred_locale=data['preferred_locale'],
+                    public_updates_channel_id=data['public_updates_channel_id']
                 )
 
                 for guild in self.guilds:
@@ -380,7 +412,7 @@ class Client:
                     roles=data['roles'],
                     joined_at=data['joined_at'],
                     is_deaf=data['deaf'] if 'deaf' in data.keys() else False,
-                    is_muted=data['muted'] if 'deaf' in data.keys() else False,
+                    is_muted=data['muted'] if 'muted' in data.keys() else False,
                     guild_id=data['guild_id']
                 )
 
@@ -434,27 +466,27 @@ class Client:
                         discriminator=data['author']['discriminator'],
                         id=data['author']['id'],
                         avatar_hash=data['author']['avatar'],
-                        is_verified=data['author']['verified'],
-                        flags=data['author']['flags'],
-                        premium_type=data['author']['premium_type']
-                    ),
-                    content=data['content'],
-                    timestamp=data['timestamp'],
-                    edited_timestamp=data['edited_timestamp'],
-                    tts=data['tts'],
-                    mention_everyone=data['mention_everyone'],
+                        is_verified=data['author']['verified'] if 'verified' in data['author'].keys() else None,
+                        flags=data['author']['flags'] if 'flags' in data['author'].keys() else None,
+                        premium_type=data['author']['premium_type'] if 'premium_type' in data['author'].keys() else None
+                    ) if 'author' in data.keys() else None,
+                    content=data['content'] if 'content' in data.keys() else '',
+                    timestamp=data['timestamp'] if 'timestamp' in data.keys() else None,
+                    edited_timestamp=data['edited_timestamp'] if 'edited_timestamp' in data.keys() else None,
+                    tts=data['tts'] if 'tts' in data.keys() else False,
+                    mention_everyone=data['mention_everyone'] if 'tts' in data.keys() else False,
                     mentions=[
                         Member(
                             name=m['username'],
                             discriminator=data['discriminator'],
                             id=m['id'],
                             avatar_hash=m['avatar'],
-                            is_verified=m['verified'],
-                            flags=m['flags'],
-                            premium_type=m['premium_type']
+                            is_verified=m['verified'] if 'verified' in m.keys() else False,
+                            flags=m['flags'] if 'flags' in m.keys() else None,
+                            premium_type=m['premium_type'] if 'premium_type' in m.keys() else None
                         ) for m in data['mentions']
-                    ],
-                    mention_roles=data['mention_roles'],
+                    ] if 'mentions' in data.keys() else [],
+                    mention_roles=data['mention_roles'] if 'mention_roles' in data.keys() else [],
                     attachments=[
                         (
                             Attachment(
@@ -472,56 +504,57 @@ class Client:
                                 url=a['url'],
                                 proxy_url=a['proxy_url']
                             )
-                        ) for a in a['attachments']
-                    ],
+                        ) for a in data['attachments']
+                    ] if 'attachments' in data.keys() else [],
                     embeds=[
                         Embed(
-                            title=e['title'],
-                            description=e['description'],
-                            url=e['url'],
-                            timestamp=e['timestamp'],
-                            color=e['color'],
+                            title=e['title'] if 'title' in e.keys() else None,
+                            description=e['description'] if 'description' in e.keys() else None,
+                            url=e['url'] if 'url' in e.keys() else None,
+                            timestamp=e['timestamp'] if 'timestamp' in e.keys() else None,
+                            color=e['color'] if 'color' in e.keys() else None,
                             footer=EmbedFooter(
                                 text=e['footer']['text'],
                                 icon_url=e['footer']['icon_url'],
                                 proxy_icon_url=e['footer']['proxy_icon_url']
-                            ),
+                            ) if 'footer' in e.keys() else None,
                             image=EmbedImage(
                                 url=e['image']['url'],
                                 proxy_url=e['image']['proxy_url'],
                                 height=e['image']['height'],
                                 width=e['image']['width']
-                            ),
+                            ) if 'image' in e.keys() else None,
                             thumbnail=EmbedThumbnail(
                                 url=e['thumbnail']['url'],
                                 proxy_url=e['thumbnail']['proxy_url'],
                                 height=e['thumbnail']['height'],
                                 width=e['thumbnail']['width']
-                            ),
+                            ) if 'thumbnail' in e.keys() else None,
                             video=EmbedVideo(
                                 url=e['video']['url'],
                                 height=e['video']['height'],
                                 width=e['video']['width']
-                            ),
+                            ) if 'video' in e.keys() else None,
                             provider=EmbedProvider(
                                 name=e['provider']['name'],
                                 url=e['provider']['url']
-                            ),
+                            ) if 'provider' in e.keys() else None,
                             author=EmbedAuthor(
                                 name=e['author']['name'],
                                 url=e['author']['url'],
                                 icon_url=e['author']['icon_url'],
                                 proxy_icon_url=e['author']['proxy_icon_url']
-                            ),
+                            ) if 'author' in e.keys() else None,
                             fields=[
                                 EmbedField(
-                                    name=e['name'],
-                                    value=e['value']
+                                    name=f['name'],
+                                    value=f['value']
                                 ) for f in e['fields']
-                            ]
+                            ] if 'fields' in e.keys() else []
                         ) for e in data['embeds']
-                    ],
-                    pinned=data['pinned']
+                    ] if 'embeds' in data.keys() else [],
+                    pinned=data['pinned'] if 'pinned' in data.keys() else False,
+                    type=data['type'] if 'type' in data.keys() else None
                 )
                 
                 await self.events.on_message_create(
@@ -537,27 +570,27 @@ class Client:
                         discriminator=data['author']['discriminator'],
                         id=data['author']['id'],
                         avatar_hash=data['author']['avatar'],
-                        is_verified=data['author']['verified'],
-                        flags=data['author']['flags'],
-                        premium_type=data['author']['premium_type']
-                    ),
-                    content=data['content'],
-                    timestamp=data['timestamp'],
-                    edited_timestamp=data['edited_timestamp'],
-                    tts=data['tts'],
-                    mention_everyone=data['mention_everyone'],
+                        is_verified=data['author']['verified'] if 'verified' in data['author'].keys() else None,
+                        flags=data['author']['flags'] if 'flags' in data['author'].keys() else None,
+                        premium_type=data['author']['premium_type'] if 'premium_type' in data['author'].keys() else None
+                    ) if 'author' in data.keys() else None,
+                    content=data['content'] if 'content' in data.keys() else '',
+                    timestamp=data['timestamp'] if 'timestamp' in data.keys() else None,
+                    edited_timestamp=data['edited_timestamp'] if 'edited_timestamp' in data.keys() else None,
+                    tts=data['tts'] if 'tts' in data.keys() else False,
+                    mention_everyone=data['mention_everyone'] if 'tts' in data.keys() else False,
                     mentions=[
                         Member(
                             name=m['username'],
                             discriminator=data['discriminator'],
                             id=m['id'],
                             avatar_hash=m['avatar'],
-                            is_verified=m['verified'],
-                            flags=m['flags'],
-                            premium_type=m['premium_type']
+                            is_verified=m['verified'] if 'verified' in m.keys() else False,
+                            flags=m['flags'] if 'flags' in m.keys() else None,
+                            premium_type=m['premium_type'] if 'premium_type' in m.keys() else None
                         ) for m in data['mentions']
-                    ],
-                    mention_roles=data['mention_roles'],
+                    ] if 'mentions' in data.keys() else [],
+                    mention_roles=data['mention_roles'] if 'mention_roles' in data.keys() else [],
                     attachments=[
                         (
                             Attachment(
@@ -575,56 +608,57 @@ class Client:
                                 url=a['url'],
                                 proxy_url=a['proxy_url']
                             )
-                        ) for a in a['attachments']
-                    ],
+                        ) for a in data['attachments']
+                    ] if 'attachments' in data.keys() else [],
                     embeds=[
                         Embed(
-                            title=e['title'],
-                            description=e['description'],
-                            url=e['url'],
-                            timestamp=e['timestamp'],
-                            color=e['color'],
+                            title=e['title'] if 'title' in e.keys() else None,
+                            description=e['description'] if 'description' in e.keys() else None,
+                            url=e['url'] if 'url' in e.keys() else None,
+                            timestamp=e['timestamp'] if 'timestamp' in e.keys() else None,
+                            color=e['color'] if 'color' in e.keys() else None,
                             footer=EmbedFooter(
                                 text=e['footer']['text'],
                                 icon_url=e['footer']['icon_url'],
                                 proxy_icon_url=e['footer']['proxy_icon_url']
-                            ),
+                            ) if 'footer' in e.keys() else None,
                             image=EmbedImage(
                                 url=e['image']['url'],
                                 proxy_url=e['image']['proxy_url'],
                                 height=e['image']['height'],
                                 width=e['image']['width']
-                            ),
+                            ) if 'image' in e.keys() else None,
                             thumbnail=EmbedThumbnail(
                                 url=e['thumbnail']['url'],
                                 proxy_url=e['thumbnail']['proxy_url'],
                                 height=e['thumbnail']['height'],
                                 width=e['thumbnail']['width']
-                            ),
+                            ) if 'thumbnail' in e.keys() else None,
                             video=EmbedVideo(
                                 url=e['video']['url'],
                                 height=e['video']['height'],
                                 width=e['video']['width']
-                            ),
+                            ) if 'video' in e.keys() else None,
                             provider=EmbedProvider(
                                 name=e['provider']['name'],
                                 url=e['provider']['url']
-                            ),
+                            ) if 'provider' in e.keys() else None,
                             author=EmbedAuthor(
                                 name=e['author']['name'],
                                 url=e['author']['url'],
                                 icon_url=e['author']['icon_url'],
                                 proxy_icon_url=e['author']['proxy_icon_url']
-                            ),
+                            ) if 'author' in e.keys() else None,
                             fields=[
                                 EmbedField(
-                                    name=e['name'],
-                                    value=e['value']
+                                    name=f['name'],
+                                    value=f['value']
                                 ) for f in e['fields']
-                            ]
+                            ] if 'fields' in e.keys() else []
                         ) for e in data['embeds']
-                    ],
-                    pinned=data['pinned']
+                    ] if 'embeds' in data.keys() else [],
+                    pinned=data['pinned'] if 'pinned' in data.keys() else False,
+                    type=data['type'] if 'type' in data.keys() else None
                 )
                 
                 await self.events.on_message_update(
@@ -764,23 +798,176 @@ class Client:
                 del args[0]
 
                 author = message.author
-                channel = self.utils.get_channel(channel_id=message.channel_id)
-                guild = self.utils.get_guild(guild_id=channel.guild_id)
+                channel = await self.utils.get_channel(channel_id=message.channel_id)
+                guild = await self.utils.get_guild(guild_id=channel.guild_id)
 
                 context = Context(author=author, message=message, channel=channel, guild=guild)
                 
-                await command.run(context, args)
+                if command.check(context):
+                    await command.run(context, args)
+
+                else:
+                    await command.failed_check()
 
 
-    async def send_message(self, message, channel_id):
-        resp = await self.__handler.post(
+    async def send_message(self, channel_id, content: str = None, embed: Embed = None, tts: bool = False):
+        body = {}
+
+        if content:
+            body['content'] = content
+
+        if embed:
+            embed_json = {}
+
+            if embed.title:
+                embed_json['title'] = embed.title
+
+            if embed.description:
+                embed_json['description'] = embed.description
+
+            if embed.url:
+                embed_json['url'] = embed.url
+
+            if embed.color:
+                embed_json['color'] = embed.color
+
+            if embed.footer:
+                embed_json['footer'] = {
+                    'text': embed.footer.text if embed.footer.text != None else '',
+                    'icon_url': embed.footer.icon_url if embed.footer.text != None else ''
+                }
+
+            if embed.image:
+                embed_json['image'] = {
+                    'url': embed.image.url,
+                    'height': embed.image.height,
+                    'width': embed.image.width
+                }
+
+            if embed.video:
+                embed_json['video'] = {
+                    'url': embed.video.url,
+                    'height': embed.video.height,
+                    'width': embed.video.width
+                }
+
+            if embed.fields:
+                embed_json['fields'] = [
+                    {
+                        'name': f.name,
+                        'value': f.value
+                    } for f in embed.fields
+                ]
+
+            body['embed'] = embed_json
+
+        status_code, response = await self.__handler.post(
             endpoint=f'/channels/{channel_id}/messages',
-            body={
-                'content': message
-            }
+            body=body
         )
 
-        print(resp)
+        if status_code == 200:
+            return Message(
+                id=response['id'],
+                channel_id=response['channel_id'],
+                author=Member(
+                    name=response['author'],
+                    discriminator=response['author']['discriminator'],
+                    id=response['author']['id'],
+                    avatar_hash=response['author']['avatar'],
+                    is_verified=None,
+                    flags=None,
+                    premium_type=None
+                ),
+                content=response['content'],
+                timestamp=response['timestamp'],
+                edited_timestamp=response['edited_timestamp'],
+                tts=response['tts'],
+                mention_everyone=response['mention_everyone'],
+                mentions=[
+                    Member(
+                        name=mn['username'],
+                        discriminator=mn['discriminator'],
+                        id=mn['id'],
+                        avatar_hash=mn['avatar'],
+                        is_verified=mn['verified'],
+                        flags=mn['flags'],
+                        premium_type=mn['premium_type']
+                    ) for mn in response['mentions']
+                ],
+                mention_roles=response['mention_roles'],
+                attachments=[
+                    (
+                        Attachment(
+                            id=a['id'],
+                            filename=a['filename'],
+                            size=a['size'],
+                            url=a['url'],
+                            proxy_url=a['proxy_url'],
+                            height=a['height'],
+                            width=a['width']
+                        ) if ('height' in a.keys() and 'width' in a.keys()) else Attachment(
+                            id=a['id'],
+                            filename=a['filename'],
+                            size=a['size'],
+                            url=a['url'],
+                            proxy_url=a['proxy_url']
+                        )
+                    ) for a in response['attachments']
+                ],
+                embeds=[
+                    Embed(
+                        title=e['title'] if 'title' in e.keys() else None,
+                        description=e['description'] if 'description' in e.keys() else None,
+                        url=e['url'] if 'url' in e.keys() else None,
+                        timestamp=e['timestamp'] if 'timestamp' in e.keys() else None,
+                        color=e['color'] if 'color' in e.keys() else None,
+                        footer=EmbedFooter(
+                            text=e['footer']['text'],
+                            icon_url=e['footer']['icon_url'],
+                            proxy_icon_url=e['footer']['proxy_icon_url']
+                        ) if 'footer' in e.keys() else None,
+                        image=EmbedImage(
+                            url=e['image']['url'],
+                            proxy_url=e['image']['proxy_url'],
+                            height=e['image']['height'],
+                            width=e['image']['width']
+                        ) if 'image' in e.keys() else None,
+                        thumbnail=EmbedThumbnail(
+                            url=e['thumbnail']['url'],
+                            proxy_url=e['thumbnail']['proxy_url'],
+                            height=e['thumbnail']['height'],
+                            width=e['thumbnail']['width']
+                        ) if 'thumbnail' in e.keys() else None,
+                        video=EmbedVideo(
+                            url=e['video']['url'],
+                            height=e['video']['height'],
+                            width=e['video']['width']
+                        ) if 'video' in e.keys() else None,
+                        provider=EmbedProvider(
+                            name=e['provider']['name'],
+                            url=e['provider']['url']
+                        ) if 'provider' in e.keys() else None,
+                        author=EmbedAuthor(
+                            name=e['author']['name'],
+                            url=e['author']['url'],
+                            icon_url=e['author']['icon_url'],
+                            proxy_icon_url=e['author']['proxy_icon_url']
+                        ) if 'author' in e.keys() else None,
+                        fields=[
+                            EmbedField(
+                                name=f['name'],
+                                value=f['value']
+                            ) for f in e['fields']
+                        ] if 'fields' in e.keys() else []
+                    ) for e in response['embeds']
+                ],
+                pinned=response['pinned'],
+                type=response['type']
+            )
+
+        else:
+            return None
 
 
     async def update_presence(self, presence: ClientPresence):
